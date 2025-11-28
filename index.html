@@ -1,0 +1,630 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Enterprise CRM — Advanced Business Management System</title>
+  <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/7.0.1/css/all.min.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Sidebar -->
+    <div class="sidebar" id="sidebar">
+      <div class="sidebar-header">
+        <div class="brand">Enterprise CRM</div>
+        <button class="sidebar-toggle" id="sidebarToggle">
+          <i class="fas fa-bars"></i>
+        </button>
+      </div>
+      <ul class="sidebar-menu">
+        <li><a href="#" class="active" data-tab="tab-dashboard"><i class="fas fa-chart-line"></i><span>Dashboard</span></a></li>
+        <li><a href="#" data-tab="tab-contacts"><i class="fas fa-users"></i><span>Contacts</span></a></li>
+        <li><a href="#" data-tab="tab-meetings"><i class="fas fa-calendar-alt"></i><span>Meetings</span></a></li>
+        <li><a href="#" data-tab="tab-tasks"><i class="fas fa-tasks"></i><span>Tasks</span></a></li>
+        <li><a href="#" data-tab="tab-documents"><i class="fas fa-file-alt"></i><span>Documents</span></a></li>
+        <li><a href="#" data-tab="tab-calendar"><i class="fas fa-calendar"></i><span>Calendar</span></a></li>
+        <li><a href="#" data-tab="tab-team"><i class="fas fa-user-friends"></i><span>Team</span></a></li>
+        <li><a href="#" data-tab="tab-reports"><i class="fas fa-chart-bar"></i><span>Reports</span></a></li>
+        <li><a href="#" data-tab="tab-status"><i class="fas fa-cog"></i><span>Settings</span></a></li>
+      </ul>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+      <div class="topbar">
+        <div>
+          <h2 style="margin:0" id="pageTitle">Dashboard</h2>
+        </div>
+        <div class="user-menu">
+          <div class="user-avatar" id="userAvatar">A</div>
+          <div>
+            <div id="userName">System Admin</div>
+            <div class="muted" style="font-size:0.8rem" id="userRole">Admin</div>
+          </div>
+          <button class="pill ghost" id="btnNotifications">
+            <i class="fas fa-bell"></i>
+          </button>
+          <button class="pill ghost" id="btnHelp">
+            <i class="fas fa-question-circle"></i>
+          </button>
+        </div>
+      </div>
+
+      <div class="content-area">
+        <div class="wrap">
+          <!-- Dashboard -->
+          <section id="tab-dashboard" class="card">
+            <div class="topbar-inner">
+              <div class="brand">Overview</div>
+              <div class="muted">Current business status</div>
+              <span class="right"></span>
+              <select id="dashboardPeriod">
+                <option value="7">Last 7 days</option>
+                <option value="30" selected>Last 30 days</option>
+                <option value="90">Last 90 days</option>
+                <option value="365">Last year</option>
+              </select>
+            </div>
+
+            <div class="grid cols-4" style="margin-top:8px">
+              <div class="card">
+                <div class="kpi"><b id="kpiContacts">0</b><span>Active Contacts</span></div>
+                <div class="hint">Total contacts in system</div>
+              </div>
+              <div class="card">
+                <div class="kpi"><b id="kpiTasksOpen">0</b><span>Open Tasks</span></div>
+                <div class="hint">Including in-progress/paused (excluding completed)</div>
+              </div>
+              <div class="card">
+                <div class="kpi"><b id="kpiMeetings7">0</b><span>Meetings in 7 days</span></div>
+                <div class="hint">Upcoming meetings in the next week</div>
+              </div>
+              <div class="card">
+                <div class="kpi"><b id="kpiRevenue">0</b><span>Estimated Revenue</span></div>
+                <div class="hint">Monthly estimated revenue</div>
+              </div>
+            </div>
+            
+            <div class="grid cols-2" style="margin-top:12px">
+              <div class="card">
+                <h3>Upcoming Meetings</h3>
+                <div class="list" id="listUpcoming"></div>
+              </div>
+              <div class="card">
+                <h3>Overdue Tasks</h3>
+                <div class="list" id="listOverdue"></div>
+              </div>
+            </div>
+            
+            <div class="grid cols-2" style="margin-top:12px">
+              <div class="card">
+                <h3>Recent Activity</h3>
+                <div class="audit-log" id="recentActivity"></div>
+              </div>
+              <div class="card">
+                <h3>Contacts by Status</h3>
+                <div class="chart-container" id="chartContactStatus"></div>
+              </div>
+            </div>
+          </section>
+
+          <!-- Contacts -->
+          <section id="tab-contacts" class="card hidden">
+            <div class="topbar-inner">
+              <div class="brand">Contact Management</div>
+              <div class="muted">Complete contact and project management</div>
+              <span class="right"></span>
+              <button class="pill" id="btnContactFilters">Advanced Filter</button>
+              <button class="pill primary" id="btnAddContactQuick">New Contact</button>
+            </div>
+
+            <div class="advanced-filters hidden" id="contactFilters">
+              <h3>Advanced Filter</h3>
+              <div class="filter-row">
+                <div>
+                  <label>Project Type</label>
+                  <select id="filterProjectType">
+                    <option value="">All Types</option>
+                  </select>
+                </div>
+                <div>
+                  <label>Status</label>
+                  <select id="filterStatus">
+                    <option value="">All Statuses</option>
+                  </select>
+                </div>
+                <div>
+                  <label>Assigned To</label>
+                  <select id="filterOwner">
+                    <option value="">All Team Members</option>
+                  </select>
+                </div>
+                <div>
+                  <label>Important?</label>
+                  <select id="filterImportant">
+                    <option value="">All</option>
+                    <option value="true">Important Only</option>
+                    <option value="false">Regular Only</option>
+                  </select>
+                </div>
+                <div>
+                  <label>Creation Date</label>
+                  <select id="filterCreated">
+                    <option value="">All Dates</option>
+                    <option value="7">Last 7 days</option>
+                    <option value="30">Last 30 days</option>
+                    <option value="90">Last 90 days</option>
+                  </select>
+                </div>
+                <button class="primary" id="btnApplyFilters">Apply Filter</button>
+                <button class="ghost" id="btnResetFilters">Reset</button>
+              </div>
+            </div>
+
+            <div class="row" style="align-items:flex-end">
+              <div class="grid cols-4" style="flex:1">
+                <div>
+                  <label>Contact Name *</label>
+                  <input id="c_name" placeholder="e.g., John Smith" required />
+                  <div class="error-msg" id="err_c_name">Contact name required</div>
+                </div>
+                <div>
+                  <label>Phone</label>
+                  <input id="c_phone" type="tel" placeholder="555-000-0000" />
+                </div>
+                <div>
+                  <label>Email</label>
+                  <input id="c_email" type="email" placeholder="name@company.com" />
+                  <div class="error-msg" id="err_c_email">Invalid email format</div>
+                </div>
+                <div>
+                  <label>Project Type</label>
+                  <input id="c_project_type" placeholder="e.g., Consulting / Sales / Support ..." />
+                </div>
+                <div>
+                  <label>Project Stage</label>
+                  <input id="c_stage" placeholder="e.g., Initial / Proposal / Implementation ..." />
+                </div>
+                <div>
+                  <label>Project ID</label>
+                  <input id="c_project_id" placeholder="PRJ-2023-001" />
+                </div>
+                <div>
+                  <label>Location</label>
+                  <input id="c_location" placeholder="e.g., New York / Remote ..." />
+                </div>
+                <div>
+                  <label>Contact Person</label>
+                  <input id="c_contact_person" placeholder="Contact person name" />
+                </div>
+                <div>
+                  <label>Next Meeting</label>
+                  <input id="c_next_meeting" type="date" />
+                </div>
+                <div>
+                  <label>Assigned To</label>
+                  <select id="c_owner"></select>
+                </div>
+                <div>
+                  <label>Source</label>
+                  <input id="c_source" placeholder="Referral / Website / Social Media" />
+                </div>
+                <div>
+                  <label>Contact Status</label>
+                  <select id="c_status"></select>
+                </div>
+                <div>
+                  <label>Important?</label>
+                  <select id="c_important"><option value="false">Regular</option><option value="true">Important</option></select>
+                </div>
+                <div>
+                  <label>Creation Date</label>
+                  <input id="c_created" type="date" />
+                </div>
+                <div style="grid-column:1/-1">
+                  <label>Notes</label>
+                  <textarea id="c_notes" placeholder="Additional information" rows="2"></textarea>
+                </div>
+              </div>
+              <button id="btnAddContact" class="primary">Add Contact</button>
+            </div>
+
+            <div class="toolbar">
+              <input id="contactSearch" placeholder="Search contact / phone / project" style="min-width:260px" />
+              <button id="btnNewMeetingFromContact" class="good">Create Meeting for Selected</button>
+              <button id="btnNewTaskFromContact" class="warn">Create Task for Selected</button>
+              <button id="btnExportSelected" class="ghost">Export Selected</button>
+              <span class="hint">Select contacts in first column → Create meeting/task with pulled details</span>
+            </div>
+
+            <table id="tblContacts">
+              <thead>
+                <tr>
+                  <th><input type="checkbox" id="ckAllContacts" title="Select All"></th>
+                  <th>Created</th>
+                  <th>Contact Name</th>
+                  <th>Phone</th>
+                  <th>Email</th>
+                  <th>Project Type</th>
+                  <th>Stage</th>
+                  <th>Project ID</th>
+                  <th>Location</th>
+                  <th>Contact Person</th>
+                  <th>Next Meeting</th>
+                  <th>Assigned To</th>
+                  <th>Source</th>
+                  <th>Status</th>
+                  <th>Important</th>
+                  <th>Notes</th>
+                  <th class="actions">Actions</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+            <div class="hint" style="margin-top:6px">Quick edit: Click on a cell to edit. Statuses open as selection. Everything saves automatically.</div>
+            
+            <div class="import-export-section">
+              <h3>Import & Export</h3>
+              <div class="toolbar">
+                <button id="btnExportContacts" class="ghost">Export Contacts (CSV/Excel)</button>
+                <button id="btnImportContacts" class="ghost">Import Contacts (CSV)</button>
+                <input type="file" id="importFile" accept=".csv" style="display:none" />
+                <button id="btnBackupAll" class="ghost">Full System Backup</button>
+                <button id="btnRestoreAll" class="ghost">Restore from Backup</button>
+                <input type="file" id="restoreFile" accept=".json" style="display:none" />
+              </div>
+            </div>
+          </section>
+
+          <!-- Meetings -->
+          <section id="tab-meetings" class="card hidden">
+            <div class="topbar-inner">
+              <div class="brand">Meeting Management</div>
+              <div class="muted">Schedule and track meetings with contacts</div>
+              <span class="right"></span>
+              <button class="pill primary" id="btnAddMeetingQuick">New Meeting</button>
+            </div>
+
+            <div class="row" style="align-items:flex-end">
+              <div class="grid cols-4" style="flex:1">
+                <div>
+                  <label>Date *</label>
+                  <input id="m_date" type="date" required />
+                  <div class="error-msg" id="err_m_date">Date required</div>
+                </div>
+                <div>
+                  <label>Time</label>
+                  <input id="m_time" type="time" />
+                </div>
+                <div>
+                  <label>Contact (Name) *</label>
+                  <input id="m_contact_name" placeholder="Contact name" required list="contactNames" />
+                  <datalist id="contactNames"></datalist>
+                  <div class="error-msg" id="err_m_contact">Contact name required</div>
+                </div>
+                <div>
+                  <label>Phone</label>
+                  <input id="m_phone" type="tel" placeholder="555-..." />
+                </div>
+                <div>
+                  <label>Email</label>
+                  <input id="m_email" type="email" placeholder="mail@..." />
+                </div>
+                <div>
+                  <label>Subject</label>
+                  <input id="m_subject" placeholder="e.g., Initial consultation" />
+                </div>
+                <div>
+                  <label>Location / Platform</label>
+                  <input id="m_location" placeholder="Office / Zoom" />
+                </div>
+                <div>
+                  <label>Assigned To</label>
+                  <select id="m_owner"></select>
+                </div>
+                <div>
+                  <label>Status</label>
+                  <select id="m_status"></select>
+                </div>
+                <div style="grid-column:1/-1">
+                  <label>Notes</label>
+                  <textarea id="m_notes" placeholder="Additional information" rows="2"></textarea>
+                </div>
+              </div>
+              <button id="btnAddMeeting" class="primary">Add Meeting</button>
+            </div>
+
+            <table id="tblMeetings">
+              <thead>
+                <tr>
+                  <th>Date</th><th>Time</th><th>Contact</th><th>Phone</th><th>Email</th><th>Subject</th><th>Location</th><th>Assigned To</th><th>Status</th><th>Notes</th><th class="actions">Actions</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </section>
+
+          <!-- Tasks -->
+          <section id="tab-tasks" class="card hidden">
+            <div class="topbar-inner">
+              <div class="brand">Task Management</div>
+              <div class="muted">Track tasks and assignments</div>
+              <span class="right"></span>
+              <button class="pill primary" id="btnAddTaskQuick">New Task</button>
+            </div>
+
+            <div class="row" style="align-items:flex-end">
+              <div class="grid cols-4" style="flex:1">
+                <div>
+                  <label>Due Date *</label>
+                  <input id="t_due" type="date" required />
+                  <div class="error-msg" id="err_t_due">Due date required</div>
+                </div>
+                <div>
+                  <label>Contact (Name)</label>
+                  <input id="t_contact_name" placeholder="Contact name" list="contactNames" />
+                </div>
+                <div>
+                  <label>Task *</label>
+                  <input id="t_task" placeholder="e.g., Prepare proposal" required />
+                  <div class="error-msg" id="err_t_task">Task name required</div>
+                </div>
+                <div>
+                  <label>Assigned To</label>
+                  <select id="t_owner"></select>
+                </div>
+                <div>
+                  <label>Priority</label>
+                  <select id="t_priority">
+                    <option value="High">High</option>
+                    <option value="Medium" selected>Medium</option>
+                    <option value="Low">Low</option>
+                  </select>
+                </div>
+                <div>
+                  <label>Status</label>
+                  <select id="t_status"></select>
+                </div>
+                <div>
+                  <label>Related to Project</label>
+                  <select id="t_project">
+                    <option value="">Not assigned</option>
+                  </select>
+                </div>
+                <div style="grid-column:1/-1">
+                  <label>Notes</label>
+                  <textarea id="t_notes" placeholder="Additional information" rows="2"></textarea>
+                </div>
+              </div>
+              <button id="btnAddTask" class="primary">Add Task</button>
+            </div>
+
+            <table id="tblTasks">
+              <thead>
+                <tr>
+                  <th>Due</th><th>Contact</th><th>Task</th><th>Assigned To</th><th>Priority</th><th>Status</th><th>Related to Project</th><th>Notes</th><th class="actions">Actions</th>
+                </tr>
+              </thead>
+              <tbody></tbody>
+            </table>
+          </section>
+
+          <!-- Documents -->
+          <section id="tab-documents" class="card hidden">
+            <div class="topbar-inner">
+              <div class="brand">Document Management</div>
+              <div class="muted">Store and track project documents</div>
+              <span class="right"></span>
+              <button class="pill primary" id="btnUploadDocument">Upload Document</button>
+            </div>
+
+            <div class="toolbar">
+              <input id="documentSearch" placeholder="Search documents..." style="min-width:260px" />
+              <select id="documentFilterContact">
+                <option value="">All Contacts</option>
+              </select>
+              <select id="documentFilterType">
+                <option value="">All Types</option>
+                <option value="contract">Contract</option>
+                <option value="proposal">Proposal</option>
+                <option value="report">Report</option>
+                <option value="correspondence">Correspondence</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+
+            <div class="document-list" id="documentList">
+              <!-- Will be populated dynamically -->
+            </div>
+          </section>
+
+          <!-- Calendar -->
+          <section id="tab-calendar" class="card hidden">
+            <div class="topbar-inner">
+              <div class="brand">Calendar</div>
+              <div class="muted">Weekly/monthly view of events</div>
+              <span class="right"></span>
+              <div>
+                <button class="pill" id="btnCalendarMonth">Month</button>
+                <button class="pill" id="btnCalendarWeek">Week</button>
+                <button class="pill primary" id="btnCalendarToday">Today</button>
+              </div>
+            </div>
+
+            <div class="calendar-header">
+              <button class="ghost" id="btnCalendarPrev"><i class="fas fa-chevron-left"></i></button>
+              <h3 id="calendarTitle">Current Month</h3>
+              <button class="ghost" id="btnCalendarNext"><i class="fas fa-chevron-right"></i></button>
+            </div>
+
+            <div class="calendar-grid" id="calendarGrid">
+              <!-- Will be populated dynamically -->
+            </div>
+          </section>
+
+          <!-- Team -->
+          <section id="tab-team" class="card hidden">
+            <div class="topbar-inner">
+              <div class="brand">Team Management</div>
+              <div class="muted">Manage team members and staff</div>
+              <span class="right"></span>
+              <button class="pill primary" id="btnAddTeamMember">Add Member</button>
+            </div>
+
+            <div class="team-grid" id="teamGrid">
+              <!-- Will be populated dynamically -->
+            </div>
+          </section>
+
+          <!-- Reports -->
+          <section id="tab-reports" class="card hidden">
+            <div class="topbar-inner">
+              <div class="brand">Reports & Analytics</div>
+              <div class="muted">Data analysis and performance metrics</div>
+              <span class="right"></span>
+              <select id="reportPeriod">
+                <option value="7">7 days</option>
+                <option value="30" selected>30 days</option>
+                <option value="90">90 days</option>
+                <option value="365">Year</option>
+              </select>
+            </div>
+
+            <div class="grid cols-2">
+              <div class="card">
+                <h3>Activity by Team Member</h3>
+                <div class="chart-container" id="chartByTeamMember"></div>
+              </div>
+              <div class="card">
+                <h3>Contacts by Project Type</h3>
+                <div class="chart-container" id="chartByProjectType"></div>
+              </div>
+              <div class="card">
+                <h3>Tasks by Status</h3>
+                <div class="chart-container" id="chartTasksByStatus"></div>
+              </div>
+              <div class="card">
+                <h3>Meetings by Month</h3>
+                <div class="chart-container" id="chartMeetingsByMonth"></div>
+              </div>
+            </div>
+
+            <div class="card" style="margin-top:16px">
+              <h3>Detailed Activity Report</h3>
+              <table id="tblReports">
+                <thead>
+                  <tr>
+                    <th>Team Member</th>
+                    <th>New Contacts</th>
+                    <th>Meetings</th>
+                    <th>Tasks Completed</th>
+                    <th>Overdue Tasks</th>
+                    <th>Completion Rate</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </section>
+
+          <!-- Settings -->
+          <section id="tab-status" class="card hidden">
+            <div class="topbar-inner">
+              <div class="brand">System Settings</div>
+              <div class="muted">Manage settings and configuration</div>
+            </div>
+
+            <div class="grid cols-3" style="margin-top:8px">
+              <div class="card">
+                <h3>Contact Status</h3>
+                <textarea id="st_contact" rows="6" class="mono" placeholder="New, In Progress, Waiting for Contact, Closed"></textarea>
+              </div>
+              <div class="card">
+                <h3>Meeting Status</h3>
+                <textarea id="st_meeting" rows="6" class="mono" placeholder="Scheduled, Completed, Cancelled, No Show"></textarea>
+              </div>
+              <div class="card">
+                <h3>Task Status</h3>
+                <textarea id="st_task" rows="6" class="mono" placeholder="Open, In Progress, Completed, On Hold"></textarea>
+              </div>
+              <div class="card">
+                <h3>Project Types</h3>
+                <textarea id="st_project_types" rows="6" class="mono" placeholder="Consulting, Sales, Support, Implementation"></textarea>
+              </div>
+              <div class="card">
+                <h3>Locations</h3>
+                <textarea id="st_locations" rows="6" class="mono" placeholder="New York, London, Remote, On-site"></textarea>
+              </div>
+              <div class="card">
+                <h3>Team Members</h3>
+                <textarea id="st_team" rows="6" class="mono" placeholder="Name:Role:Email, Name:Role:Email"></textarea>
+              </div>
+            </div>
+            <div class="toolbar">
+              <button id="btnSaveStatuses" class="good">Save Settings</button>
+              <button id="btnResetStatuses" class="ghost">Reset to Defaults</button>
+              <span class="hint">Write each item on a new line or separated by commas. Will immediately affect selection fields.</span>
+            </div>
+
+            <div class="import-export-section">
+              <h3>User Management</h3>
+              <div class="toolbar">
+                <button id="btnAddUser" class="primary">Add User</button>
+                <button id="btnManageRoles" class="ghost">Manage Permissions</button>
+              </div>
+              
+              <table id="tblUsers" style="margin-top:16px">
+                <thead>
+                  <tr>
+                    <th>Username</th>
+                    <th>Email</th>
+                    <th>Role</th>
+                    <th>Status</th>
+                    <th>Created</th>
+                    <th class="actions">Actions</th>
+                  </tr>
+                </thead>
+                <tbody></tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modals -->
+  <div id="modalQuick" class="modal" role="dialog" aria-modal="true" aria-hidden="true">
+    <div class="sheet">
+      <h3 id="modalTitle">Quick Create</h3>
+      <div id="modalBody"></div>
+      <div class="toolbar" style="justify-content:flex-end">
+        <button id="modalCancel" class="ghost">Cancel</button>
+        <button id="modalOk" class="primary">OK</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="modalHelp" class="modal" role="dialog" aria-modal="true" aria-hidden="true">
+    <div class="sheet">
+      <h3>Enterprise CRM - User Guide</h3>
+      <ol>
+        <li><strong>Dashboard</strong> - Current status with metrics and recent activity.</li>
+        <li><strong>Contacts</strong> - Complete management of contacts and projects with advanced filtering.</li>
+        <li><strong>Meetings</strong> - Schedule and track meetings with contacts.</li>
+        <li><strong>Tasks</strong> - Manage tasks and assignments with team allocation.</li>
+        <li><strong>Documents</strong> - Store and track project documents.</li>
+        <li><strong>Calendar</strong> - Weekly/monthly view of events.</li>
+        <li><strong>Team</strong> - Manage team members and staff.</li>
+        <li><strong>Reports</strong> - Advanced data analysis and performance metrics.</li>
+        <li><strong>Settings</strong> - System configuration and user management.</li>
+      </ol>
+      <div class="toolbar" style="justify-content:flex-end"><button id="helpClose" class="primary">Close</button></div>
+    </div>
+  </div>
+
+
+  <script src="js/app.js"></script>
+</body>
+</html>
