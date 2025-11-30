@@ -26,7 +26,15 @@ function App() {
     updateTeam,
     updateStatuses,
     updateUsers,
-    updateSettings
+    updateSettings,
+    currentUser,
+    filteredContacts,
+    filteredMeetings,
+    filteredTasks,
+    switchViewMode,
+    hasPermission,
+    notifications,
+    suggestions
   } = useCRM();
 
   const [quickModal, setQuickModal] = useState({
@@ -64,51 +72,59 @@ function App() {
       case 'dashboard':
         return (
           <Dashboard
-            contacts={state.contacts}
-            meetings={state.meetings}
-            tasks={state.tasks}
+            contacts={filteredContacts}
+            meetings={filteredMeetings}
+            tasks={filteredTasks}
+            currentUser={currentUser}
           />
         );
       case 'contacts':
         return (
           <Contacts
-            contacts={state.contacts}
+            contacts={filteredContacts}
             updateContacts={updateContacts}
             statuses={state.statuses}
             onCreateMeeting={handleCreateMeeting}
             onCreateTask={handleCreateTask}
+            hasPermission={hasPermission}
+            suggestions={suggestions}
           />
         );
       case 'meetings':
         return (
           <Meetings
-            meetings={state.meetings}
+            meetings={filteredMeetings}
             updateMeetings={updateMeetings}
             statuses={state.statuses}
             contacts={state.contacts}
+            hasPermission={hasPermission}
+            suggestions={suggestions}
           />
         );
       case 'tasks':
         return (
           <Tasks
-            tasks={state.tasks}
+            tasks={filteredTasks}
             updateTasks={updateTasks}
             statuses={state.statuses}
             contacts={state.contacts}
+            hasPermission={hasPermission}
+            suggestions={suggestions}
           />
         );
       case 'documents':
         return <Documents documents={state.documents} />;
       case 'calendar':
-        return <Calendar meetings={state.meetings} />;
+        return <Calendar meetings={filteredMeetings} />;
       case 'team':
         return <Team team={state.team} />;
       case 'reports':
         return (
           <Reports
-            contacts={state.contacts}
-            meetings={state.meetings}
-            tasks={state.tasks}
+            contacts={filteredContacts}
+            meetings={filteredMeetings}
+            tasks={filteredTasks}
+            currentUser={currentUser}
           />
         );
       case 'settings':
@@ -121,9 +137,10 @@ function App() {
       default:
         return (
           <Dashboard
-            contacts={state.contacts}
-            meetings={state.meetings}
-            tasks={state.tasks}
+            contacts={filteredContacts}
+            meetings={filteredMeetings}
+            tasks={filteredTasks}
+            currentUser={currentUser}
           />
         );
     }
@@ -133,7 +150,13 @@ function App() {
     <div className="app-container">
       <Sidebar currentTab={currentTab} onTabChange={setCurrentTab} />
       <div className="main-content">
-        <Topbar currentTab={currentTab} currentUser={state.users[0]} />
+        <Topbar
+          currentTab={currentTab}
+          currentUser={currentUser}
+          switchViewMode={switchViewMode}
+          notifications={notifications}
+          setCurrentTab={setCurrentTab}
+        />
         <div className="content-area">
           <div className="wrap">
             {renderContent()}
