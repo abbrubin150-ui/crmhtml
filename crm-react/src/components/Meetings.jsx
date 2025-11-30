@@ -1,7 +1,8 @@
 import { useState, useMemo } from 'react';
 import { uid, todayStr } from '../services/storage';
+import AutoComplete from './AutoComplete';
 
-const Meetings = ({ meetings, updateMeetings, statuses, contacts }) => {
+const Meetings = ({ meetings, updateMeetings, statuses, contacts, suggestions }) => {
   const [formData, setFormData] = useState({
     date: todayStr(),
     time: '',
@@ -99,17 +100,24 @@ const Meetings = ({ meetings, updateMeetings, statuses, contacts }) => {
           </div>
           <div>
             <label>Contact (Name) *</label>
-            <input
+            <AutoComplete
               value={formData.contact_name}
               onChange={e => setFormData({ ...formData, contact_name: e.target.value })}
-              placeholder="Contact name"
-              list="contactNames"
+              suggestions={suggestions?.contactSuggestions || []}
+              placeholder="Start typing contact name..."
+              onSelect={(contact) => {
+                // Auto-fill related fields from contact data
+                if (contact.data) {
+                  setFormData(prev => ({
+                    ...prev,
+                    contact_name: contact.value,
+                    phone: contact.data.phone || prev.phone,
+                    email: contact.data.email || prev.email,
+                    owner: contact.data.owner || prev.owner
+                  }));
+                }
+              }}
             />
-            <datalist id="contactNames">
-              {contacts.map(c => (
-                <option key={c.id} value={c.name} />
-              ))}
-            </datalist>
             {errors.contact && <div className="error-msg show">{errors.contact}</div>}
           </div>
           <div>
@@ -132,18 +140,22 @@ const Meetings = ({ meetings, updateMeetings, statuses, contacts }) => {
           </div>
           <div>
             <label>Subject</label>
-            <input
+            <AutoComplete
               value={formData.subject}
               onChange={e => setFormData({ ...formData, subject: e.target.value })}
+              suggestions={suggestions?.subjectSuggestions || []}
               placeholder="e.g., Initial consultation"
+              minChars={2}
             />
           </div>
           <div>
             <label>Location / Platform</label>
-            <input
+            <AutoComplete
               value={formData.location}
               onChange={e => setFormData({ ...formData, location: e.target.value })}
+              suggestions={suggestions?.locationSuggestions || []}
               placeholder="Office / Zoom"
+              minChars={0}
             />
           </div>
           <div>

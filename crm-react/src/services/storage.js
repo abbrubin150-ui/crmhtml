@@ -1,4 +1,6 @@
 // Local Storage Service
+import { migrateUsersToV2 } from '../utils/userRoles';
+
 const LS_KEYS = {
   contacts: 'crm_enterprise_contacts',
   meetings: 'crm_enterprise_meetings',
@@ -7,7 +9,8 @@ const LS_KEYS = {
   team: 'crm_enterprise_team',
   statuses: 'crm_enterprise_statuses',
   users: 'crm_enterprise_users',
-  settings: 'crm_enterprise_settings'
+  settings: 'crm_enterprise_settings',
+  currentUser: 'crm_enterprise_current_user'
 };
 
 export const DEFAULT_STATUSES = {
@@ -86,6 +89,10 @@ export const initializeDefaultData = () => {
     }];
   }
 
+  // Migrate users to V2 (with belonging system)
+  users = migrateUsersToV2(users);
+  saveData('users', users);
+
   // Create example data if empty
   if (contacts.length === 0 && meetings.length === 0 && tasks.length === 0) {
     const exampleContacts = [{
@@ -144,6 +151,13 @@ export const initializeDefaultData = () => {
     };
   }
 
+  // Get or set current user (default to first user)
+  let currentUser = loadData('currentUser');
+  if (!currentUser && users.length > 0) {
+    currentUser = users[0];
+    saveData('currentUser', currentUser);
+  }
+
   return {
     contacts,
     meetings,
@@ -152,6 +166,7 @@ export const initializeDefaultData = () => {
     team,
     statuses,
     users,
-    settings
+    settings,
+    currentUser
   };
 };
