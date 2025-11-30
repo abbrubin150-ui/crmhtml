@@ -36,18 +36,33 @@
         <div>
           <h2 style="margin:0" id="pageTitle">Dashboard</h2>
         </div>
-        <div class="user-menu">
-          <div class="user-avatar" id="userAvatar">A</div>
-          <div>
-            <div id="userName">System Admin</div>
-            <div class="muted" style="font-size:0.8rem" id="userRole">Admin</div>
+        <div style="display: flex; align-items: center; gap: 1rem;">
+          <!-- View Switcher -->
+          <div class="view-switcher" id="view-switcher-container">
+            <label for="view-mode-select" style="font-size: 0.85rem; color: #666; margin-right: 0.5rem;">
+              <i class="fas fa-filter"></i> View:
+            </label>
+            <select id="view-mode-select" style="padding: 0.4rem 0.8rem; border-radius: 6px; border: 1px solid #ddd;">
+              <option value="my_data">🧑 My Work</option>
+              <option value="team_data">👥 My Team</option>
+              <option value="regional_data">🌍 My Region</option>
+              <option value="project_type_data">📁 My Projects</option>
+              <option value="all_data">🏢 All Data</option>
+            </select>
           </div>
-          <button class="pill ghost" id="btnNotifications">
-            <i class="fas fa-bell"></i>
-          </button>
-          <button class="pill ghost" id="btnHelp">
-            <i class="fas fa-question-circle"></i>
-          </button>
+          <div class="user-menu">
+            <div class="user-avatar" id="userAvatar">A</div>
+            <div>
+              <div id="userName">System Admin</div>
+              <div class="muted" style="font-size:0.8rem" id="userRole">Admin</div>
+            </div>
+            <button class="pill ghost" id="btnNotifications">
+              <i class="fas fa-bell"></i>
+            </button>
+            <button class="pill ghost" id="btnHelp">
+              <i class="fas fa-question-circle"></i>
+            </button>
+          </div>
         </div>
       </div>
 
