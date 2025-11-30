@@ -19,6 +19,271 @@
       team: []
     };
 
+    // --- User Belonging System Constants ---
+    const USER_ROLES = {
+      ADMIN: 'admin',
+      REGIONAL_MANAGER: 'regional_manager',
+      TEAM_LEAD: 'team_lead',
+      SALES_REP: 'sales_rep',
+      CONSULTANT: 'consultant',
+      PROJECT_MANAGER: 'project_manager'
+    };
+
+    const VIEW_MODES = {
+      MY_DATA: 'my_data',
+      TEAM_DATA: 'team_data',
+      REGIONAL_DATA: 'regional_data',
+      PROJECT_TYPE_DATA: 'project_type_data',
+      ALL_DATA: 'all_data'
+    };
+
+    const VIEW_MODE_LABELS = {
+      my_data: 'My Work',
+      team_data: 'My Team',
+      regional_data: 'My Region',
+      project_type_data: 'My Projects',
+      all_data: 'All Data'
+    };
+
+    // Default permissions by role
+    function getDefaultPermissions(role) {
+      switch(role) {
+        case USER_ROLES.ADMIN:
+          return {
+            contacts: { view: true, create: true, edit: true, delete: true },
+            meetings: { view: true, create: true, edit: true, delete: true },
+            tasks: { view: true, create: true, edit: true, delete: true },
+            reports: { view: true, export: true },
+            settings: { view: true, edit: true }
+          };
+        case USER_ROLES.REGIONAL_MANAGER:
+          return {
+            contacts: { view: true, create: true, edit: true, delete: true },
+            meetings: { view: true, create: true, edit: true, delete: true },
+            tasks: { view: true, create: true, edit: true, delete: true },
+            reports: { view: true, export: true },
+            settings: { view: true, edit: false }
+          };
+        case USER_ROLES.TEAM_LEAD:
+          return {
+            contacts: { view: true, create: true, edit: true, delete: true },
+            meetings: { view: true, create: true, edit: true, delete: true },
+            tasks: { view: true, create: true, edit: true, delete: true },
+            reports: { view: true, export: true },
+            settings: { view: true, edit: false }
+          };
+        case USER_ROLES.SALES_REP:
+          return {
+            contacts: { view: true, create: true, edit: true, delete: true },
+            meetings: { view: true, create: true, edit: true, delete: true },
+            tasks: { view: true, create: true, edit: true, delete: true },
+            reports: { view: true, export: true },
+            settings: { view: true, edit: false }
+          };
+        case USER_ROLES.CONSULTANT:
+        case USER_ROLES.PROJECT_MANAGER:
+          return {
+            contacts: { view: true, create: true, edit: true, delete: false },
+            meetings: { view: true, create: true, edit: true, delete: false },
+            tasks: { view: true, create: true, edit: true, delete: false },
+            reports: { view: true, export: false },
+            settings: { view: true, edit: false }
+          };
+        default:
+          return {
+            contacts: { view: true, create: true, edit: false, delete: false },
+            meetings: { view: true, create: true, edit: false, delete: false },
+            tasks: { view: true, create: true, edit: false, delete: false },
+            reports: { view: true, export: false },
+            settings: { view: false, edit: false }
+          };
+      }
+    }
+
+    // Default view mode by role
+    function getDefaultViewMode(role) {
+      switch(role) {
+        case USER_ROLES.ADMIN:
+          return VIEW_MODES.ALL_DATA;
+        case USER_ROLES.REGIONAL_MANAGER:
+          return VIEW_MODES.REGIONAL_DATA;
+        case USER_ROLES.TEAM_LEAD:
+          return VIEW_MODES.TEAM_DATA;
+        case USER_ROLES.PROJECT_MANAGER:
+          return VIEW_MODES.PROJECT_TYPE_DATA;
+        default:
+          return VIEW_MODES.MY_DATA;
+      }
+    }
+
+    // Default dashboard config
+    function getDefaultDashboardConfig(role) {
+      return {
+        show_kpis: ['all'],
+        show_charts: true,
+        default_date_range: '7days'
+      };
+    }
+
+    // Migrate existing users to V2 (with belonging system)
+    function migrateUsersToV2() {
+      let migrated = false;
+      state.users = state.users.map(user => {
+        if (!user.view_mode) {
+          migrated = true;
+          return {
+            ...user,
+            view_mode: user.role === 'admin' ? VIEW_MODES.ALL_DATA : VIEW_MODES.MY_DATA,
+            filter_preset: {
+              owner: [user.name],
+              project_types: [],
+              locations: [],
+              teams: []
+            },
+            permissions: getDefaultPermissions(user.role || 'consultant'),
+            dashboard_config: getDefaultDashboardConfig(user.role || 'consultant')
+          };
+        }
+        return user;
+      });
+
+      if (migrated) {
+        console.log('Users migrated to V2 with belonging system');
+        localStorage.setItem(LS_KEYS.users, JSON.stringify(state.users));
+      }
+    }
+
+    // Core filtering function - applies user's "world view"
+    function getFilteredData(dataArray, currentUser) {
+      if (!dataArray || dataArray.length === 0) return [];
+      if (!currentUser) return dataArray;
+
+      // Admin with all_data mode sees everything
+      if (currentUser.role === 'admin' && currentUser.view_mode === VIEW_MODES.ALL_DATA) {
+        return dataArray;
+      }
+
+      let filtered = dataArray;
+
+      switch(currentUser.view_mode) {
+        case VIEW_MODES.MY_DATA:
+          // Only records owned by or assigned to the user
+          filtered = filtered.filter(item =>
+            item.owner === currentUser.name ||
+            (item.assigned_users && item.assigned_users.includes(currentUser.id))
+          );
+          break;
+
+        case VIEW_MODES.TEAM_DATA:
+          // Records of the team members
+          if (currentUser.filter_preset && currentUser.filter_preset.owner.length > 0) {
+            filtered = filtered.filter(item =>
+              currentUser.filter_preset.owner.includes(item.owner) ||
+              item.team_name === currentUser.team_name
+            );
+          } else {
+            // Fallback to own data if no team configured
+            filtered = filtered.filter(item => item.owner === currentUser.name);
+          }
+          break;
+
+        case VIEW_MODES.REGIONAL_DATA:
+          // All records in the user's region
+          if (currentUser.filter_preset && currentUser.filter_preset.locations.length > 0) {
+            filtered = filtered.filter(item =>
+              currentUser.filter_preset.locations.includes(item.location) ||
+              currentUser.filter_preset.locations.includes(item.region)
+            );
+          } else {
+            // Fallback to own data if no region configured
+            filtered = filtered.filter(item => item.owner === currentUser.name);
+          }
+          break;
+
+        case VIEW_MODES.PROJECT_TYPE_DATA:
+          // Records by project type
+          if (currentUser.filter_preset && currentUser.filter_preset.project_types.length > 0) {
+            filtered = filtered.filter(item =>
+              currentUser.filter_preset.project_types.includes(item.project_type)
+            );
+          } else {
+            // Fallback to own data if no project types configured
+            filtered = filtered.filter(item => item.owner === currentUser.name);
+          }
+          break;
+
+        case VIEW_MODES.ALL_DATA:
+          // No filtering - user sees everything
+          break;
+      }
+
+      return filtered;
+    }
+
+    // Get scope label for UI display
+    function getScopeLabel(user) {
+      if (!user || !user.view_mode) return 'All';
+      return VIEW_MODE_LABELS[user.view_mode] || 'All';
+    }
+
+    // Check if user can switch to a specific view mode
+    function canSwitchView(user, newMode) {
+      if (!user) return false;
+
+      // Admin can switch to any view
+      if (user.role === 'admin') return true;
+
+      // Regional managers can switch between regional, team, and my data
+      if (user.role === 'regional_manager') {
+        return [VIEW_MODES.REGIONAL_DATA, VIEW_MODES.TEAM_DATA, VIEW_MODES.MY_DATA].includes(newMode);
+      }
+
+      // Team leads can switch between team and my data
+      if (user.role === 'team_lead') {
+        return [VIEW_MODES.TEAM_DATA, VIEW_MODES.MY_DATA].includes(newMode);
+      }
+
+      // Project managers can switch between project type and my data
+      if (user.role === 'project_manager') {
+        return [VIEW_MODES.PROJECT_TYPE_DATA, VIEW_MODES.MY_DATA].includes(newMode);
+      }
+
+      // Everyone else can only see their own data
+      return newMode === VIEW_MODES.MY_DATA;
+    }
+
+    // Switch view mode
+    function switchViewMode(newMode) {
+      if (!state.currentUser) return;
+
+      if (!canSwitchView(state.currentUser, newMode)) {
+        alert('You do not have permission to access this view');
+        return;
+      }
+
+      state.currentUser.view_mode = newMode;
+      localStorage.setItem(LS_KEYS.users, JSON.stringify(state.users));
+
+      // Refresh all displays
+      refreshAll();
+
+      // Show toast notification
+      showToast('Switched to ' + VIEW_MODE_LABELS[newMode]);
+    }
+
+    // Simple toast notification
+    function showToast(message) {
+      const toast = document.createElement('div');
+      toast.className = 'toast-notification';
+      toast.textContent = message;
+      toast.style.cssText = 'position: fixed; bottom: 20px; right: 20px; background: #333; color: white; padding: 12px 20px; border-radius: 8px; z-index: 9999; animation: fadeInOut 2s;';
+      document.body.appendChild(toast);
+
+      setTimeout(() => {
+        toast.remove();
+      }, 2000);
+    }
+
     let state = {
       contacts: [],
       meetings: [],
@@ -91,7 +356,7 @@
         state.settings = {};
       }
       
-      // If no users, create default admin user
+      // If no users, create default admin user with belonging system
       if(state.users.length === 0) {
         state.users.push({
           id: uid(),
@@ -100,10 +365,22 @@
           role: "admin",
           active: true,
           created: new Date().toISOString(),
-          lastLogin: null
+          lastLogin: null,
+          view_mode: VIEW_MODES.ALL_DATA,
+          filter_preset: {
+            owner: [],
+            project_types: [],
+            locations: [],
+            teams: []
+          },
+          permissions: getDefaultPermissions(USER_ROLES.ADMIN),
+          dashboard_config: getDefaultDashboardConfig(USER_ROLES.ADMIN)
         });
       }
-      
+
+      // Migrate existing users to V2 (if needed)
+      migrateUsersToV2();
+
       // Set current user
       state.currentUser = state.users[0];
     }
@@ -318,11 +595,13 @@
     function renderContacts(){
       const tbody = document.querySelector('#tblContacts tbody');
       if(!tbody) return;
-      
+
       const q = document.getElementById('contactSearch')?.value?.trim().toLowerCase() || '';
       tbody.innerHTML = '';
-      
-      let rows = state.contacts;
+
+      // Apply user's belonging filter first
+      const allContacts = state.contacts;
+      let rows = getFilteredData(allContacts, state.currentUser);
       
       // Filter by search
       if(q){
@@ -487,6 +766,18 @@
           }
         });
       });
+
+      // Update scope indicator if exists
+      const scopeIndicator = document.getElementById('contacts-scope-indicator');
+      if (scopeIndicator) {
+        const scopeLabel = getScopeLabel(state.currentUser);
+        scopeIndicator.innerHTML = `
+          <span class="scope-badge ${state.currentUser.view_mode}">
+            ${scopeLabel}
+          </span>
+          <span class="scope-count">Showing ${rows.length} of ${allContacts.length} contacts</span>
+        `;
+      }
     }
 
     function buildStatusSelect(kind, value, id){
@@ -551,9 +842,14 @@
     function renderMeetings(){
       const tbody = document.querySelector('#tblMeetings tbody');
       if(!tbody) return;
-      
+
       tbody.innerHTML='';
-      for(const r of state.meetings){
+
+      // Apply user's belonging filter
+      const allMeetings = state.meetings;
+      const filteredMeetings = getFilteredData(allMeetings, state.currentUser);
+
+      for(const r of filteredMeetings){
         const tr = document.createElement('tr');
         tr.classList.add('fade-in');
         tr.innerHTML = `
@@ -611,6 +907,18 @@
           }
         });
       });
+
+      // Update scope indicator if exists
+      const scopeIndicator = document.getElementById('meetings-scope-indicator');
+      if (scopeIndicator) {
+        const scopeLabel = getScopeLabel(state.currentUser);
+        scopeIndicator.innerHTML = `
+          <span class="scope-badge ${state.currentUser.view_mode}">
+            ${scopeLabel}
+          </span>
+          <span class="scope-count">Showing ${filteredMeetings.length} of ${allMeetings.length} meetings</span>
+        `;
+      }
     }
 
     // --- Tasks ---
@@ -671,9 +979,14 @@
     function renderTasks(){
       const tbody = document.querySelector('#tblTasks tbody');
       if(!tbody) return;
-      
+
       tbody.innerHTML='';
-      for(const r of state.tasks){
+
+      // Apply user's belonging filter
+      const allTasks = state.tasks;
+      const filteredTasks = getFilteredData(allTasks, state.currentUser);
+
+      for(const r of filteredTasks){
         const contact = state.contacts.find(c => c.id === r.project_id);
         const contactName = contact ? contact.name : r.contact_name;
         
@@ -734,25 +1047,55 @@
           }
         });
       });
+
+      // Update scope indicator if exists
+      const scopeIndicator = document.getElementById('tasks-scope-indicator');
+      if (scopeIndicator) {
+        const scopeLabel = getScopeLabel(state.currentUser);
+        scopeIndicator.innerHTML = `
+          <span class="scope-badge ${state.currentUser.view_mode}">
+            ${scopeLabel}
+          </span>
+          <span class="scope-count">Showing ${filteredTasks.length} of ${allTasks.length} tasks</span>
+        `;
+      }
     }
 
     // --- Dashboard ---
     function renderDashboard(){
+      // Apply user's belonging filter to all data
+      const myContacts = getFilteredData(state.contacts, state.currentUser);
+      const myMeetings = getFilteredData(state.meetings, state.currentUser);
+      const myTasks = getFilteredData(state.tasks, state.currentUser);
+
+      // Update dashboard title with scope
+      const dashTitle = document.getElementById('dashboard-title');
+      if (dashTitle) {
+        const scopeLabel = getScopeLabel(state.currentUser);
+        dashTitle.innerHTML = `Dashboard <span class="scope-badge ${state.currentUser.view_mode}">${scopeLabel}</span>`;
+      }
+
       const kpiContacts = document.getElementById('kpiContacts');
-      if(kpiContacts) kpiContacts.textContent = state.contacts.length;
-      
-      const openTasks = state.tasks.filter(t=>t.status!=="Completed");
+      if(kpiContacts) kpiContacts.textContent = myContacts.length;
+
+      const openTasks = myTasks.filter(t=>t.status!=="Completed");
       const kpiTasksOpen = document.getElementById('kpiTasksOpen');
       if(kpiTasksOpen) kpiTasksOpen.textContent = openTasks.length;
-      
-      const next7 = upcomingMeetings(7);
+
+      // Update upcomingMeetings to use filtered data
+      const today = todayStr();
+      const next7Days = new Date();
+      next7Days.setDate(next7Days.getDate() + 7);
+      const next7DaysStr = next7Days.toISOString().slice(0,10);
+      const next7 = myMeetings.filter(m => m.date >= today && m.date <= next7DaysStr).sort((a,b) => a.date.localeCompare(b.date));
+
       const kpiMeetings7 = document.getElementById('kpiMeetings7');
       if(kpiMeetings7) kpiMeetings7.textContent = next7.length;
 
-      // Estimated revenue (simple example)
+      // Estimated revenue (simple example) based on filtered contacts
       const kpiRevenue = document.getElementById('kpiRevenue');
       if(kpiRevenue) {
-        const revenue = state.contacts.length * 2500; // Example - $2500 average per contact
+        const revenue = myContacts.length * 2500; // Example - $2500 average per contact
         kpiRevenue.textContent = revenue.toLocaleString();
       }
 
@@ -770,7 +1113,7 @@
       const listOd = document.getElementById('listOverdue');
       if(listOd){
         listOd.innerHTML='';
-        const overdue = state.tasks.filter(t=> t.status!=="Completed" && t.due && new Date(t.due) < startOfDay(new Date()));
+        const overdue = myTasks.filter(t=> t.status!=="Completed" && t.due && new Date(t.due) < startOfDay(new Date()));
         overdue.slice(0,8).forEach(t=>{
           const div = document.createElement('div');
           div.classList.add('fade-in');
@@ -1685,5 +2028,30 @@
         saveAll();
       } else {
         refreshAll();
+      }
+
+      // Setup view switcher
+      const viewModeSelect = document.getElementById('view-mode-select');
+      if (viewModeSelect && state.currentUser) {
+        // Set initial value
+        viewModeSelect.value = state.currentUser.view_mode || VIEW_MODES.ALL_DATA;
+
+        // Update available options based on user permissions
+        const availableOptions = Array.from(viewModeSelect.options).filter(opt =>
+          canSwitchView(state.currentUser, opt.value)
+        );
+
+        // Disable options user can't access
+        Array.from(viewModeSelect.options).forEach(opt => {
+          if (!canSwitchView(state.currentUser, opt.value)) {
+            opt.disabled = true;
+            opt.textContent += ' (No access)';
+          }
+        });
+
+        // Listen for changes
+        viewModeSelect.addEventListener('change', (e) => {
+          switchViewMode(e.target.value);
+        });
       }
     })();
