@@ -7,7 +7,8 @@
       team: 'crm_enterprise_team',
       statuses: 'crm_enterprise_statuses',
       users: 'crm_enterprise_users',
-      settings: 'crm_enterprise_settings'
+      settings: 'crm_enterprise_settings',
+      notifications: 'crm_enterprise_notifications'
     };
 
     const DEFAULT_STATUSES = {
@@ -294,7 +295,9 @@
       users: [],
       settings: {},
       currentUser: null,
-      filters: {}
+      filters: {},
+      notifications: [],
+      notificationDismissals: {}
     };
 
     // Initial load from localStorage
@@ -354,6 +357,13 @@
       }catch(e){
         console.error('Error loading settings:', e);
         state.settings = {};
+      }
+      try{
+        const notificationsData = localStorage.getItem(LS_KEYS.notifications);
+        state.notificationDismissals = notificationsData ? JSON.parse(notificationsData) : {};
+      }catch(e){
+        console.error('Error loading notifications:', e);
+        state.notificationDismissals = {};
       }
       
       // If no users, create default admin user with belonging system
@@ -516,6 +526,301 @@
       renderReports();
       renderCalendar();
       updateUserInfo();
+      evaluateNotifications();
+    }
+
+    // --- Notifications ---
+    function saveNotificationDismissals() {
+      try {
+        localStorage.setItem(LS_KEYS.notifications, JSON.stringify(state.notificationDismissals || {}));
+      } catch (e) {
+        console.error('Error saving notification dismissals:', e);
+      }
+    }
+
+    function ensureNotificationPanel(){
+      if(document.getElementById('notificationsPanel')) return;
+
+      const panel = document.createElement('div');
+      panel.id = 'notificationsPanel';
+      panel.className = 'notification-panel';
+      panel.innerHTML = `
+        <div class="notification-panel__backdrop"></div>
+        <div class="notification-panel__container">
+          <div class="notification-panel__header">
+            <div>
+              <div class="brand" style="margin-bottom:4px">Notifications</div>
+              <div class="muted" id="notificationsSubtitle">Stay ahead of upcoming work</div>
+            </div>
+            <button class="pill ghost" id="notificationsClose" aria-label="Close notifications">&times;</button>
+          </div>
+          <div class="notification-panel__content" id="notificationList"></div>
+        </div>`;
+
+      document.body.appendChild(panel);
+
+      const backdrop = panel.querySelector('.notification-panel__backdrop');
+      const closeBtn = panel.querySelector('#notificationsClose');
+
+      if(backdrop) backdrop.addEventListener('click', closeNotificationPanel);
+      if(closeBtn) closeBtn.addEventListener('click', closeNotificationPanel);
+    }
+
+    function normalizeDateOnly(dateStr){
+      if(!dateStr) return null;
+      const d = new Date(dateStr);
+      if(Number.isNaN(d.getTime())) return null;
+      d.setHours(0,0,0,0);
+      return d;
+    }
+
+    function buildNotificationGroups(){
+      const todayDate = new Date();
+      todayDate.setHours(0,0,0,0);
+      const soonDate = new Date(todayDate);
+      soonDate.setDate(soonDate.getDate() + 2);
+
+      const sections = [];
+      const dismissalMap = state.notificationDismissals || {};
+      const filteredMeetings = getFilteredData(state.meetings, state.currentUser);
+      const filteredTasks = getFilteredData(state.tasks, state.currentUser);
+
+      const meetingsByUrgency = { overdue: [], today: [], upcoming: [] };
+      filteredMeetings.forEach(m => {
+        if(!m) return;
+        if(m.status && ['Completed','Cancelled'].includes(m.status)) return;
+        const normalized = normalizeDateOnly(m.date);
+        const key = `meeting-${m.id}`;
+        if(!normalized || dismissalMap[key]) return;
+        if(normalized < todayDate) meetingsByUrgency.overdue.push(m);
+        else if(normalized.getTime() === todayDate.getTime()) meetingsByUrgency.today.push(m);
+        else if(normalized <= soonDate) meetingsByUrgency.upcoming.push(m);
+      });
+
+      const tasksByUrgency = { overdue: [], today: [], upcoming: [] };
+      filteredTasks.forEach(t => {
+        if(!t) return;
+        if(t.status && ['Completed','Cancelled','Done'].includes(t.status)) return;
+        const normalized = normalizeDateOnly(t.due);
+        const key = `task-${t.id}`;
+        if(!normalized || dismissalMap[key]) return;
+        if(normalized < todayDate) tasksByUrgency.overdue.push(t);
+        else if(normalized.getTime() === todayDate.getTime()) tasksByUrgency.today.push(t);
+        else if(normalized <= soonDate) tasksByUrgency.upcoming.push(t);
+      });
+
+      const sectionBuilder = (title, items, type, severity) => {
+        if(items.length === 0) return;
+        sections.push({
+          title,
+          items: items.map(item => ({
+            id: item.id,
+            type,
+            label: type === 'meeting' ? (item.subject || 'Meeting') : (item.task || 'Task'),
+            context: type === 'meeting' ? (item.contact_name || item.location || '') : (item.contact_name || ''),
+            date: type === 'meeting' ? item.date : item.due,
+            time: type === 'meeting' ? item.time : '',
+            priority: item.priority || '',
+            status: item.status || ''
+          })),
+          severity
+        });
+      };
+
+      sectionBuilder("Today's meetings", meetingsByUrgency.today, 'meeting', 'high');
+      sectionBuilder('Overdue meetings', meetingsByUrgency.overdue, 'meeting', 'high');
+      sectionBuilder('Upcoming meetings', meetingsByUrgency.upcoming, 'meeting', 'medium');
+      sectionBuilder("Today's tasks", tasksByUrgency.today, 'task', 'high');
+      sectionBuilder('Overdue tasks', tasksByUrgency.overdue, 'task', 'high');
+      sectionBuilder('Upcoming tasks', tasksByUrgency.upcoming, 'task', 'medium');
+
+      return sections;
+    }
+
+    function updateNotificationsBadge(groups){
+      const btn = document.getElementById('btnNotifications');
+      if(!btn) return;
+
+      let badge = btn.querySelector('.notification-badge');
+      if(!badge){
+        badge = document.createElement('span');
+        badge.className = 'notification-badge hidden';
+        badge.id = 'notificationsBadge';
+        btn.appendChild(badge);
+      }
+
+      const highPriority = (groups || []).reduce((sum, grp) => {
+        if(grp.severity === 'high') {
+          return sum + (grp.items ? grp.items.length : 0);
+        }
+        return sum;
+      }, 0);
+
+      badge.textContent = highPriority > 99 ? '99+' : highPriority;
+      badge.classList.toggle('hidden', highPriority === 0);
+    }
+
+    function renderNotificationsPanel(){
+      ensureNotificationPanel();
+      const container = document.getElementById('notificationList');
+      const subtitle = document.getElementById('notificationsSubtitle');
+      if(!container) return;
+
+      container.innerHTML = '';
+      const groups = state.notifications || [];
+
+      if(groups.length === 0){
+        if(subtitle) subtitle.textContent = 'No pending alerts right now';
+        const empty = document.createElement('div');
+        empty.className = 'notification-empty';
+        empty.textContent = 'You are all caught up!';
+        container.appendChild(empty);
+        return;
+      }
+
+      if(subtitle) subtitle.textContent = 'Quickly act on time-sensitive updates';
+
+      groups.forEach(group => {
+        const section = document.createElement('div');
+        section.className = 'notification-section';
+        section.innerHTML = `
+          <div class="notification-section__title">
+            <span>${group.title}</span>
+            <span class="badge">${group.items.length}</span>
+          </div>`;
+
+        group.items.forEach(item => {
+          const itemEl = document.createElement('div');
+          itemEl.className = `notification-item ${group.severity === 'high' ? 'is-critical' : ''}`;
+          itemEl.dataset.id = item.id;
+          itemEl.dataset.type = item.type;
+          itemEl.innerHTML = `
+            <div class="notification-item__main">
+              <div>
+                <div class="notification-item__title">${esc(item.label)}</div>
+                <div class="notification-item__meta">${esc(item.context)}${item.context && item.date ? ' • ' : ''}${esc(item.date || '')}${item.time ? ' @ ' + esc(item.time) : ''}</div>
+              </div>
+              <div class="notification-item__status">${esc(item.status || item.priority || '')}</div>
+            </div>
+            <div class="notification-item__actions">
+              <button data-action="view" class="ghost">View</button>
+              <button data-action="done" class="good">Mark done</button>
+              <button data-action="reschedule" class="pill">Reschedule</button>
+              <button data-action="dismiss" class="ghost">Dismiss</button>
+            </div>`;
+          section.appendChild(itemEl);
+        });
+
+        container.appendChild(section);
+      });
+
+      container.querySelectorAll('button[data-action]').forEach(btn => {
+        btn.addEventListener('click', handleNotificationAction);
+      });
+    }
+
+    function evaluateNotifications(){
+      state.notifications = buildNotificationGroups();
+      updateNotificationsBadge(state.notifications);
+
+      const panel = document.getElementById('notificationsPanel');
+      if(panel && panel.classList.contains('open')){
+        renderNotificationsPanel();
+      }
+    }
+
+    function navigateToTab(tabId){
+      const link = document.querySelector(`.sidebar-menu a[data-tab="${tabId}"]`);
+      if(link){
+        link.click();
+      }
+    }
+
+    function handleNotificationAction(e){
+      const btn = e.currentTarget;
+      const itemEl = btn.closest('.notification-item');
+      if(!itemEl) return;
+
+      const action = btn.dataset.action;
+      const id = itemEl.dataset.id;
+      const type = itemEl.dataset.type;
+
+      switch(action){
+        case 'view':
+          navigateToTab(type === 'meeting' ? 'tab-meetings' : 'tab-tasks');
+          closeNotificationPanel();
+          break;
+        case 'done':
+          markNotificationDone(type, id);
+          break;
+        case 'reschedule':
+          rescheduleNotification(type, id);
+          break;
+        case 'dismiss':
+          dismissNotification(type, id);
+          break;
+      }
+    }
+
+    function markNotificationDone(type, id){
+      if(type === 'meeting'){
+        const meeting = state.meetings.find(m => m.id === id);
+        if(meeting){
+          meeting.status = 'Completed';
+          saveAll();
+          showToast('Meeting marked as completed');
+        }
+      } else if(type === 'task'){
+        const task = state.tasks.find(t => t.id === id);
+        if(task){
+          task.status = 'Completed';
+          saveAll();
+          showToast('Task marked as completed');
+        }
+      }
+    }
+
+    function rescheduleNotification(type, id){
+      if(type === 'meeting'){
+        const meeting = state.meetings.find(m => m.id === id);
+        if(meeting){
+          const newDate = prompt('New meeting date (YYYY-MM-DD):', meeting.date || todayStr());
+          if(!newDate) return;
+          const newTime = prompt('New meeting time (HH:MM):', meeting.time || '');
+          meeting.date = newDate;
+          if(newTime !== null) meeting.time = newTime;
+          saveAll();
+          showToast('Meeting rescheduled');
+        }
+      } else if(type === 'task'){
+        const task = state.tasks.find(t => t.id === id);
+        if(task){
+          const newDate = prompt('New due date (YYYY-MM-DD):', task.due || todayStr());
+          if(!newDate) return;
+          task.due = newDate;
+          saveAll();
+          showToast('Task rescheduled');
+        }
+      }
+    }
+
+    function dismissNotification(type, id){
+      if(!state.notificationDismissals) state.notificationDismissals = {};
+      state.notificationDismissals[`${type}-${id}`] = true;
+      saveNotificationDismissals();
+      evaluateNotifications();
+    }
+
+    function openNotificationPanel(){
+      ensureNotificationPanel();
+      renderNotificationsPanel();
+      const panel = document.getElementById('notificationsPanel');
+      if(panel) panel.classList.add('open');
+    }
+
+    function closeNotificationPanel(){
+      const panel = document.getElementById('notificationsPanel');
+      if(panel) panel.classList.remove('open');
     }
     
     function updateUserInfo() {
@@ -1849,9 +2154,16 @@
     if(contactSearch) contactSearch.addEventListener('input', renderContacts);
 
     const ckAllContacts = document.getElementById('ckAllContacts');
-    if(ckAllContacts){
-      ckAllContacts.addEventListener('change', e=>{
-        document.querySelectorAll('.ckContact').forEach(ck=> ck.checked = e.target.checked);
+      if(ckAllContacts){
+        ckAllContacts.addEventListener('change', e=>{
+          document.querySelectorAll('.ckContact').forEach(ck=> ck.checked = e.target.checked);
+        });
+      }
+
+    const btnNotifications = document.getElementById('btnNotifications');
+    if(btnNotifications){
+      btnNotifications.addEventListener('click', () => {
+        openNotificationPanel();
       });
     }
 
