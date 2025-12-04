@@ -1,0 +1,9 @@
+# Release artifacts
+release/light/
+release/full/
+release/*.zip
+release/exe/
+
+# Node modules and build outputs
+crm-react/node_modules/
+crm-react/dist/
